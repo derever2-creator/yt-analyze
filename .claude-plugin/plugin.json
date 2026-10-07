@@ -1,0 +1,6 @@
+{
+  "name": "yt-analyze",
+  "description": "Analyze YouTube videos in Claude Code: metadata + transcript + scene key frames via /yt <url>",
+  "version": "0.1.0",
+  "author": { "name": "derever2" }
+}
