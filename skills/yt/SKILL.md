@@ -41,7 +41,7 @@ Lead with the answer to what was asked. Cite timestamps from the transcript ([mm
 
 ## Traps
 
-- Auto captions repeat rolling lines; the parser collapses them, but counts of "how many times X was said" are unreliable.
+- Auto captions repeat rolling lines; the parser drops any line already emitted within the last four cues. A chorus or a chant repeated back to back is therefore collapsed to one line, and counts of "how many times X was said" are unreliable.
 - Scene detection returns few cuts on static talking-head videos; the script fills with uniform samples, so frames are not all "cuts".
 - Age-restricted or members-only videos fail at download. Report it, do not retry with cookies unless the user asks.
 - Shorts URLs (`youtube.com/shorts/ID`) work as-is.
