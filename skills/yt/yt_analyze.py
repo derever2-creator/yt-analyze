@@ -63,16 +63,25 @@ def fmt_ts(sec):
 def parse_vtt(path):
     """Collapse VTT cues (auto captions repeat rolling lines) into [mm:ss] text."""
     text = path.read_text("utf-8", errors="replace")
+    # YouTube auto captions roll: each cue repeats the previous line and tags only the
+    # new words with <00:00:04.799><c>word</c>. Keep tagged lines only in that case.
+    tagged = "<c>" in text
+    timing = re.compile(r"(\d+):(\d+):(\d+)\.\d+\s+-->")
+    cues, cur = [], None
+    for line in text.splitlines():
+        m = timing.match(line)
+        if m:
+            cur = (int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3)), [])
+            cues.append(cur)
+        elif cur is not None:
+            cur[1].append(line)
     lines = []
     last = ""
-    for block in re.split(r"\n\s*\n", text):
-        m = re.search(r"(\d+):(\d+):(\d+)\.\d+\s+-->.*$", block, flags=re.M)
-        if not m:
-            continue
-        start = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
-        body = block[m.end():]
-        body = re.sub(r"<[^>]+>", "", body)
-        body = " ".join(l.strip() for l in body.splitlines() if l.strip())
+    for start, body_lines in cues:
+        if tagged:
+            body_lines = [l for l in body_lines if "<c>" in l]
+        body = " ".join(re.sub(r"<[^>]+>", "", l).strip() for l in body_lines)
+        body = " ".join(body.split())
         if not body or body == last or (last and body in last):
             continue
         if last and last in body:
@@ -138,6 +147,15 @@ def choose_times(scenes, duration, n):
     return sorted(chosen)[:n]
 
 
+def fit_width(meta, n, budget):
+    """Largest frame width (multiple of 16, max 640) so n frames stay under budget tokens."""
+    if n <= 0:
+        return 640
+    aspect = (meta.get("width") or 16) / (meta.get("height") or 9)
+    area = budget / n / TOKENS_PER_PIXEL
+    return max(160, min(640, int(math.sqrt(area * aspect)) // 16 * 16))
+
+
 def extract_frames(video, times, out, width):
     fdir = out / "frames"
     fdir.mkdir(exist_ok=True)
@@ -183,7 +201,10 @@ def main():
     ap.add_argument("url")
     ap.add_argument("--out", required=True, help="output folder")
     ap.add_argument("--frames", type=int, default=60, help="key frames to keep (0 = none)")
-    ap.add_argument("--width", type=int, default=640, help="frame width in px")
+    ap.add_argument("--width", type=int, default=None,
+                    help="frame width in px (default: largest that fits --budget, max 640)")
+    ap.add_argument("--budget", type=int, default=20000,
+                    help="token budget for all frames together; sets the default width")
     ap.add_argument("--height", type=int, default=480, help="max download height")
     ap.add_argument("--scene", type=float, default=0.3, help="ffmpeg scene-change threshold")
     ap.add_argument("--grid", action="store_true", help="also build 4x5 contact sheets")
@@ -214,10 +235,11 @@ def main():
     log(f"transcript {len(lines)} lines from {source}")
 
     frames, grids = [], []
+    width = a.width or fit_width(meta, a.frames, a.budget)
     if a.frames > 0 and duration > 0:
-        log("scene detection")
+        log(f"scene detection, width {width}")
         times = choose_times(scene_times(video, a.scene), duration, a.frames)
-        frames = extract_frames(video, times, out, a.width)
+        frames = extract_frames(video, times, out, width)
         if a.grid:
             grids = make_grids(frames, out, 4, 5)
         log(f"{len(frames)} frames, {len(grids)} grids")
@@ -235,7 +257,7 @@ def main():
         f"- channel: {meta.get('channel') or meta.get('uploader')}",
         f"- duration: {fmt_ts(duration)}  upload: {meta.get('upload_date')}  views: {meta.get('view_count')}",
         f"- transcript: {len(lines)} lines, source {source}",
-        f"- frames: {len(frames)} @ {a.width}px, est. {frame_tok} tokens if all are read",
+        f"- frames: {len(frames)} @ {width}px, est. {frame_tok} tokens if all are read (budget {a.budget})",
         f"- grids: {len(grids)}, est. {grid_tok} tokens",
         "",
         "## frames",
