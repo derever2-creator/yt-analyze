@@ -40,8 +40,18 @@ def download(url, out, height):
         "no_warnings": True,
         "noplaylist": True,
     }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+    except yt_dlp.utils.DownloadError as e:
+        if "subtitles" not in str(e):
+            raise
+        # YouTube rate-limits caption fetches (HTTP 429) long before video downloads;
+        # fall back to the video alone and let whisper handle the transcript.
+        log(f"captions unavailable ({str(e).splitlines()[-1][:80]}), continuing without")
+        opts.update(writesubtitles=False, writeautomaticsub=False)
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
     meta = {k: info.get(k) for k in (
         "id", "title", "channel", "uploader", "duration", "upload_date",
         "view_count", "like_count", "description", "webpage_url", "width", "height",
