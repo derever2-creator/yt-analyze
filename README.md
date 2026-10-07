@@ -45,7 +45,7 @@ The script also works without an agent:
 python skills/yt/yt_analyze.py <url> --out out/VIDEO_ID --frames 60 --width 640 --grid
 ```
 
-Options: `--frames N` (default 60, 0 = none), `--width PX` (640), `--height PX` max download height (480), `--scene 0.3` cut threshold, `--grid` 4x5 sheets, `--whisper small|base|medium`, `--no-whisper`, `--force-whisper` (ignore captions, useful when auto captions are poor), `--keep-video`.
+Options: `--frames N` (default 60, 0 = none), `--budget TOKENS` (20000, picks the frame width from the aspect ratio: 640 px for 16:9, 576 for 4:3, 368 for Shorts), `--width PX` (overrides the budget), `--height PX` max download height (480), `--scene 0.3` cut threshold, `--grid` 4x5 sheets, `--whisper small|base|medium`, `--no-whisper`, `--force-whisper` (ignore captions, useful when auto captions are poor), `--keep-video`.
 
 ## Notes
 

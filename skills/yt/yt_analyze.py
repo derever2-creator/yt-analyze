@@ -38,6 +38,7 @@ def download(url, out, height):
         "subtitlesformat": "vtt",
         "quiet": True,
         "no_warnings": True,
+        "noplaylist": True,
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
@@ -76,22 +77,17 @@ def parse_vtt(path):
         elif cur is not None:
             cur[1].append(line)
     lines = []
-    last = ""
+    recent = []
     for start, body_lines in cues:
-        if tagged:
+        if tagged and any("<c>" in l for l in body_lines):
             body_lines = [l for l in body_lines if "<c>" in l]
-        body = " ".join(re.sub(r"<[^>]+>", "", l).strip() for l in body_lines)
-        body = " ".join(body.split())
-        if not body or body == last or (last and body in last):
+        clean = [" ".join(re.sub(r"<[^>]+>", "", l).split()) for l in body_lines]
+        clean = [l for l in clean if l and l not in recent]
+        if not clean:
             continue
-        if last and last in body:
-            body_new = body.replace(last, "", 1).strip()
-            if not body_new:
-                continue
-            lines.append(f"[{fmt_ts(start)}] {body_new}")
-        else:
-            lines.append(f"[{fmt_ts(start)}] {body}")
-        last = body
+        body = " ".join(clean)
+        lines.append(f"[{fmt_ts(start)}] {body}")
+        recent = (recent + clean)[-4:]
     return lines
 
 
@@ -133,7 +129,7 @@ def scene_times(video, threshold):
 
 def choose_times(scenes, duration, n):
     """Evenly thin scene cuts to n; fill from a uniform grid when there are too few."""
-    scenes = sorted(set(round(t, 2) for t in scenes if t < duration))
+    scenes = sorted(set(t for t in (round(t, 2) for t in scenes) if 0 <= t < duration))
     if len(scenes) >= n:
         idx = [round(i * (len(scenes) - 1) / (n - 1)) for i in range(n)] if n > 1 else [0]
         return [scenes[i] for i in idx]
