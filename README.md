@@ -17,7 +17,7 @@ The frame count is the token knob. 60 frames at 640 px is about 18k tokens if th
 Requirements: Python 3.10+, ffmpeg on PATH.
 
 ```
-git clone https://github.com/derever2/yt-analyze
+git clone https://github.com/derever2-creator/yt-analyze
 cd yt-analyze/skills/yt
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt      # Windows
