@@ -64,9 +64,8 @@ def fmt_ts(sec):
 def parse_vtt(path):
     """Collapse VTT cues (auto captions repeat rolling lines) into [mm:ss] text."""
     text = path.read_text("utf-8", errors="replace")
-    # YouTube auto captions roll: each cue repeats the previous line and tags only the
-    # new words with <00:00:04.799><c>word</c>. Keep tagged lines only in that case.
-    tagged = "<c>" in text
+    # YouTube auto captions roll: each cue repeats the previous line before the new one,
+    # so a line already emitted in the last four is dropped.
     timing = re.compile(r"(\d+):(\d+):(\d+)\.\d+\s+-->")
     cues, cur = [], None
     for line in text.splitlines():
@@ -79,8 +78,6 @@ def parse_vtt(path):
     lines = []
     recent = []
     for start, body_lines in cues:
-        if tagged and any("<c>" in l for l in body_lines):
-            body_lines = [l for l in body_lines if "<c>" in l]
         clean = [" ".join(re.sub(r"<[^>]+>", "", l).split()) for l in body_lines]
         clean = [l for l in clean if l and l not in recent]
         if not clean:
